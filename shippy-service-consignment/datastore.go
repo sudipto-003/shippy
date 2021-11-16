@@ -19,6 +19,5 @@ func CreateClient(ctx context.Context, uri string, retry int32) (*mongo.Client, 
 		time.Sleep(time.Second * 2)
 		return CreateClient(ctx, uri, retry)
 	}
-
 	return conn, err
 }

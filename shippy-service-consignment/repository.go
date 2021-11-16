@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 
-	pb "github.com/EwanValentine/shippy/shippy-service-consignment/proto/consignment"
+	pb "github.com/sudipto-003/shippy/shippy-service-consignment/proto/consignment"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -39,12 +40,12 @@ func UnmarshalContainerCollection(containers []*Container) []*pb.Container {
 	return collection
 }
 
-func UnmarshalConsignmentCollection(consignments []*Consignment) []*pb.Consignment {
-	collection := make([]*pb.Consignment, 0)
-	for _, consignment := range consignments {
-		collection = append(collection, UnmarshalConsignment(consignment))
+func MarshalContainer(container *pb.Container) *Container {
+	return &Container{
+		ID:         container.Id,
+		CustomerID: container.CustomerId,
+		UserID:     container.UserId,
 	}
-	return collection
 }
 
 func UnmarshalContainer(container *Container) *pb.Container {
@@ -55,22 +56,20 @@ func UnmarshalContainer(container *Container) *pb.Container {
 	}
 }
 
-func MarshalContainer(container *pb.Container) *Container {
-	return &Container{
-		ID:         container.Id,
-		CustomerID: container.CustomerId,
-		UserID:     container.UserId,
+func UnmarshalConsignmentCollection(consignments []*Consignment) []*pb.Consignment {
+	collection := make([]*pb.Consignment, 0)
+	for _, consignment := range consignments {
+		collection = append(collection, UnmarshalConsignment(consignment))
 	}
+	return collection
 }
 
-// Marshal an input consignment type to a consignment model
 func MarshalConsignment(consignment *pb.Consignment) *Consignment {
-	containers := MarshalContainerCollection(consignment.Containers)
 	return &Consignment{
 		ID:          consignment.Id,
 		Weight:      consignment.Weight,
 		Description: consignment.Description,
-		Containers:  containers,
+		Containers:  MarshalContainerCollection(consignment.Containers),
 		VesselID:    consignment.VesselId,
 	}
 }
@@ -78,8 +77,8 @@ func MarshalConsignment(consignment *pb.Consignment) *Consignment {
 func UnmarshalConsignment(consignment *Consignment) *pb.Consignment {
 	return &pb.Consignment{
 		Id:          consignment.ID,
-		Weight:      consignment.Weight,
 		Description: consignment.Description,
+		Weight:      consignment.Weight,
 		Containers:  UnmarshalContainerCollection(consignment.Containers),
 		VesselId:    consignment.VesselID,
 	}
@@ -90,20 +89,18 @@ type repository interface {
 	GetAll(ctx context.Context) ([]*Consignment, error)
 }
 
-// MongoRepository implementation
 type MongoRepository struct {
 	collection *mongo.Collection
 }
 
-// Create -
 func (repository *MongoRepository) Create(ctx context.Context, consignment *Consignment) error {
 	_, err := repository.collection.InsertOne(ctx, consignment)
 	return err
 }
 
-// GetAll -
 func (repository *MongoRepository) GetAll(ctx context.Context) ([]*Consignment, error) {
-	cur, err := repository.collection.Find(ctx, nil, nil)
+	cur, err := repository.collection.Find(ctx, bson.M{})
+	defer cur.Close(ctx)
 	var consignments []*Consignment
 	for cur.Next(ctx) {
 		var consignment *Consignment
@@ -112,5 +109,6 @@ func (repository *MongoRepository) GetAll(ctx context.Context) ([]*Consignment, 
 		}
 		consignments = append(consignments, consignment)
 	}
+
 	return consignments, err
 }

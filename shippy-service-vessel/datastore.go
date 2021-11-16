@@ -8,7 +8,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// CreateClient -
 func CreateClient(ctx context.Context, uri string, retry int32) (*mongo.Client, error) {
 	conn, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err := conn.Ping(ctx, nil); err != nil {
@@ -19,6 +18,5 @@ func CreateClient(ctx context.Context, uri string, retry int32) (*mongo.Client, 
 		time.Sleep(time.Second * 2)
 		return CreateClient(ctx, uri, retry)
 	}
-
 	return conn, err
 }

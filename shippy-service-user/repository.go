@@ -2,11 +2,10 @@ package main
 
 import (
 	"context"
-	"log"
 
-	pb "github.com/EwanValentine/shippy/shippy-service-user/proto/user"
 	"github.com/jmoiron/sqlx"
 	uuid "github.com/satori/go.uuid"
+	pb "github.com/sudipto-003/shippy/shippy-service-user/proto/user"
 )
 
 type User struct {
@@ -33,10 +32,11 @@ func NewPostgresRepository(db *sqlx.DB) *PostgresRepository {
 }
 
 func MarshalUserCollection(users []*pb.User) []*User {
-	u := make([]*User, len(users))
+	u := make([]*User, 0)
 	for _, val := range users {
 		u = append(u, MarshalUser(val))
 	}
+
 	return u
 }
 
@@ -44,17 +44,18 @@ func MarshalUser(user *pb.User) *User {
 	return &User{
 		ID:       user.Id,
 		Name:     user.Name,
-		Email:    user.Email,
 		Company:  user.Company,
+		Email:    user.Email,
 		Password: user.Password,
 	}
 }
 
 func UnmarshalUserCollection(users []*User) []*pb.User {
-	u := make([]*pb.User, len(users))
+	u := make([]*pb.User, 0)
 	for _, val := range users {
 		u = append(u, UnmarshalUser(val))
 	}
+
 	return u
 }
 
@@ -62,15 +63,15 @@ func UnmarshalUser(user *User) *pb.User {
 	return &pb.User{
 		Id:       user.ID,
 		Name:     user.Name,
-		Email:    user.Email,
 		Company:  user.Company,
+		Email:    user.Email,
 		Password: user.Password,
 	}
 }
 
 func (r *PostgresRepository) GetAll(ctx context.Context) ([]*User, error) {
 	users := make([]*User, 0)
-	if err := r.db.GetContext(ctx, users, "select * from users"); err != nil {
+	if err := r.db.SelectContext(ctx, &users, "select * from users"); err != nil {
 		return users, err
 	}
 
@@ -78,29 +79,27 @@ func (r *PostgresRepository) GetAll(ctx context.Context) ([]*User, error) {
 }
 
 func (r *PostgresRepository) Get(ctx context.Context, id string) (*User, error) {
-	var user *User
+	user := User{}
 	if err := r.db.GetContext(ctx, &user, "select * from users where id = $1", id); err != nil {
 		return nil, err
 	}
 
-	return user, nil
+	return &user, nil
 }
 
-// Create a new user
 func (r *PostgresRepository) Create(ctx context.Context, user *User) error {
 	user.ID = uuid.NewV4().String()
-	log.Println(user)
-	query := "insert into users (id, name, email, company, password) values ($1, $2, $3, $4, $5)"
-	_, err := r.db.ExecContext(ctx, query, user.ID, user.Name, user.Email, user.Company, user.Password)
+	query := "insert into users (id, name, company, email, password) values ($1, $2, $3, $4, $5)"
+	_, err := r.db.ExecContext(ctx, query, user.ID, user.Name, user.Company, user.Email, user.Password)
 	return err
 }
 
-// GetByEmail fetches a single user by their email address
 func (r *PostgresRepository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	query := "select * from users where email = $1"
-	var user *User
+	user := User{}
 	if err := r.db.GetContext(ctx, &user, query, email); err != nil {
 		return nil, err
 	}
-	return user, nil
+
+	return &user, nil
 }
